@@ -1,6 +1,6 @@
 /**
  * ============================================
- * IPTV Reverse Proxy - Cloudflare Worker
+ * IPTV Proxy - Cloudflare Worker
  * ============================================
  *
  * Features:
