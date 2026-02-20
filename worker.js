@@ -1,76 +1,166 @@
-// IPTV Channels
+/**
+ * ============================================
+ * IPTV Reverse Proxy - Cloudflare Worker
+ * ============================================
+ *
+ * Features:
+ *  - Supports standard HLS
+ *  - Supports Wowza / SMIL streams
+ *  - Preserves query strings (nimblesessionid fix)
+ *  - Rewrites master + variant playlists
+ *  - Rewrites EXT-X-KEY URIs
+ *  - Streams binary segments safely
+ *  - CORS enabled
+ *
+ * Production ready
+ */
+
+// ============================================
+// 📡 CHANNEL LIST
+// ============================================
 const CHANNELS = {
   "2342": "https://live.livetvstream.co.uk/LS-63503-4",
-  // "1001": "https://example.com/live/stream1"
+  "1001": "https://familyhls.avatv.live/hls",
+  "1234": "https://3abn.bozztv.com/3abn2/3abn_live/smil:3abn_live.smil"
 }
 
+
+// ============================================
+// 🌍 WORKER ENTRY
+// ============================================
 export default {
   async fetch(request) {
     try {
-      const url = new URL(request.url)
-      const parts = url.pathname.split('/').filter(Boolean)
 
-      const id = parts[0]
-      const rest = parts.slice(1).join('/')
+      // Parse incoming request
+      const requestUrl = new URL(request.url)
+      const pathParts = requestUrl.pathname.split("/").filter(Boolean)
 
-      const base = CHANNELS[id]
+      const channelId = pathParts[0]
+      const restPath = pathParts.slice(1).join("/")   // segment path
+      const queryString = requestUrl.search || ""     // IMPORTANT: preserve tokens
+
+      // Validate channel
+      const base = CHANNELS[channelId]
       if (!base) {
-        return new Response('Channel not found', { status: 404 })
+        return new Response("Channel not found", { status: 404 })
       }
 
-      const baseUrl = new URL(base)
+      // ============================================
+      // 🎯 BUILD TARGET URL (SMIL SAFE + QUERY SAFE)
+      // ============================================
 
-      // Build target URL dynamically
       let targetUrl
-      if (rest) {
-        targetUrl = new URL(rest, baseUrl + '/')
+
+      if (restPath) {
+        // Example:
+        // /1234/media_xxx.ts?nimblesessionid=xxx
+        targetUrl = base.endsWith("/")
+          ? base + restPath + queryString
+          : base + "/" + restPath + queryString
       } else {
-        targetUrl = new URL('index.m3u8', baseUrl + '/')
+        // First request (playlist)
+        if (base.includes(".smil")) {
+          targetUrl = base + "/playlist.m3u8" + queryString
+        } else {
+          targetUrl = base + "/index.m3u8" + queryString
+        }
       }
 
-      // Dynamic headers based on origin
-      const headers = {
-        "User-Agent": request.headers.get("User-Agent") || "Mozilla/5.0",
-        "Referer": baseUrl.origin + "/",
-        "Origin": baseUrl.origin
+      const upstreamUrl = new URL(targetUrl)
+
+      // ============================================
+      // 📡 UPSTREAM HEADERS
+      // ============================================
+
+      const upstreamHeaders = {
+        "User-Agent":
+          request.headers.get("User-Agent") ||
+          "Mozilla/5.0 (Windows NT 10.0; Win64; x64)",
+        "Referer": upstreamUrl.origin + "/"
+        // Do NOT send Origin header (prevents CDN block)
       }
 
-      const response = await fetch(targetUrl.toString(), { headers })
+      const upstreamResponse = await fetch(upstreamUrl.toString(), {
+        headers: upstreamHeaders
+      })
 
-      const contentType = response.headers.get("content-type") || ""
+      if (!upstreamResponse.ok) {
+        return new Response(
+          "Upstream Error: " + upstreamResponse.status,
+          { status: upstreamResponse.status }
+        )
+      }
 
-      // 🔥 Rewrite HLS playlists
+      const contentType =
+        upstreamResponse.headers.get("content-type") || ""
+
+
+      // ============================================
+      // 🔥 PLAYLIST HANDLING (.m3u8)
+      // ============================================
+
       if (
         contentType.includes("application/vnd.apple.mpegurl") ||
         contentType.includes("application/x-mpegURL") ||
-        targetUrl.pathname.endsWith(".m3u8")
+        upstreamUrl.pathname.endsWith(".m3u8")
       ) {
-        let text = await response.text()
 
+        let playlistText = await upstreamResponse.text()
+
+        const proxyBase = `${requestUrl.origin}/${channelId}`
+
+        // --------------------------------------------
         // Rewrite absolute URLs
-        text = text.replaceAll(
-          baseUrl.origin,
-          `${url.origin}/${id}`
+        // --------------------------------------------
+        playlistText = playlistText.replace(
+          /https?:\/\/[^"\s]+/g,
+          (url) => url.replace(upstreamUrl.origin, proxyBase)
         )
 
-        // Rewrite relative segment paths
-        text = text.replaceAll(
-          baseUrl.pathname.replace(/\/$/, '') + '/',
-          `${url.origin}/${id}/`
+        // --------------------------------------------
+        // Rewrite relative paths (preserve query!)
+        // --------------------------------------------
+        playlistText = playlistText.replace(
+          /^([^#][^\r\n]*)/gm,
+          (line) => {
+            if (line.startsWith("http")) return line
+            if (line.trim() === "") return line
+            return `${proxyBase}/${line}`
+          }
         )
 
-        return new Response(text, {
+        // --------------------------------------------
+        // Rewrite EXT-X-KEY URIs
+        // --------------------------------------------
+        playlistText = playlistText.replace(
+          /URI="([^"]+)"/g,
+          (match, uri) => {
+            if (uri.startsWith("http")) {
+              const filename = uri.split("/").pop()
+              return `URI="${proxyBase}/${filename}"`
+            }
+            return `URI="${proxyBase}/${uri}"`
+          }
+        )
+
+        return new Response(playlistText, {
           headers: {
             "Content-Type": "application/vnd.apple.mpegurl",
             "Access-Control-Allow-Origin": "*",
-            "Access-Control-Allow-Headers": "*"
+            "Access-Control-Allow-Headers": "*",
+            "Cache-Control": "public, max-age=10"
           }
         })
       }
 
-      // 🎥 Stream segments (.ts, .m4s, etc.)
-      return new Response(response.body, {
-        status: response.status,
+
+      // ============================================
+      // 🎥 SEGMENT STREAMING (.ts, .m4s, etc.)
+      // ============================================
+
+      return new Response(upstreamResponse.body, {
+        status: 200,
         headers: {
           "Content-Type": contentType,
           "Access-Control-Allow-Origin": "*",
@@ -79,7 +169,9 @@ export default {
       })
 
     } catch (err) {
-      return new Response("Proxy Error: " + err.message, { status: 500 })
+      return new Response("Proxy Error: " + err.message, {
+        status: 500
+      })
     }
   }
 }
