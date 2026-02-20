@@ -21,7 +21,7 @@
 const CHANNELS = {
   "2342": "https://live.livetvstream.co.uk/LS-63503-4",
   "1001": "https://familyhls.avatv.live/hls",
-  "1234": "https://3abn.bozztv.com/3abn2/3abn_live/smil:3abn_live.smil"
+  "1234": "https://voa-ingest.akamaized.net/hls/live/2033876/tvmc07"
 }
 
 
@@ -37,7 +37,7 @@ export default {
       const pathParts = requestUrl.pathname.split("/").filter(Boolean)
 
       const channelId = pathParts[0]
-      const restPath = pathParts.slice(1).join("/")   // segment path
+      const restPath = pathParts.slice(1).join("/")  // segment path
       const queryString = requestUrl.search || ""     // IMPORTANT: preserve tokens
 
       // Validate channel
@@ -65,6 +65,30 @@ export default {
         } else {
           targetUrl = base + "/index.m3u8" + queryString
         }
+      }
+
+      // Special handler for encoded absolute URLs
+      if (restPath.startsWith("__proxy__/")) {
+        const encodedUrl = restPath.replace("__proxy__/", "")
+        const decodedUrl = decodeURIComponent(encodedUrl)
+
+        const upstreamResponse = await fetch(decodedUrl, {
+          headers: {
+            "User-Agent":
+              request.headers.get("User-Agent") ||
+              "Mozilla/5.0",
+            "Referer": new URL(decodedUrl).origin + "/"
+          }
+        })
+
+        return new Response(upstreamResponse.body, {
+          headers: {
+            "Content-Type":
+              upstreamResponse.headers.get("content-type") ||
+              "application/octet-stream",
+            "Access-Control-Allow-Origin": "*"
+          }
+        })
       }
 
       const upstreamUrl = new URL(targetUrl)
@@ -106,41 +130,26 @@ export default {
         upstreamUrl.pathname.endsWith(".m3u8")
       ) {
 
+        const finalUrl = upstreamResponse.url
+        const finalBase = finalUrl.substring(0, finalUrl.lastIndexOf("/") + 1)
+
         let playlistText = await upstreamResponse.text()
 
         const proxyBase = `${requestUrl.origin}/${channelId}`
 
-        // --------------------------------------------
-        // Rewrite absolute URLs
-        // --------------------------------------------
-        playlistText = playlistText.replace(
-          /https?:\/\/[^"\s]+/g,
-          (url) => url.replace(upstreamUrl.origin, proxyBase)
-        )
-
-        // --------------------------------------------
-        // Rewrite relative paths (preserve query!)
-        // --------------------------------------------
         playlistText = playlistText.replace(
           /^([^#][^\r\n]*)/gm,
           (line) => {
-            if (line.startsWith("http")) return line
-            if (line.trim() === "") return line
-            return `${proxyBase}/${line}`
-          }
-        )
 
-        // --------------------------------------------
-        // Rewrite EXT-X-KEY URIs
-        // --------------------------------------------
-        playlistText = playlistText.replace(
-          /URI="([^"]+)"/g,
-          (match, uri) => {
-            if (uri.startsWith("http")) {
-              const filename = uri.split("/").pop()
-              return `URI="${proxyBase}/${filename}"`
-            }
-            return `URI="${proxyBase}/${uri}"`
+            if (!line.trim()) return line
+
+            // Build absolute upstream URL properly
+            const absoluteUpstreamUrl = new URL(line, finalBase).toString()
+
+            // Convert to proxy path
+            const relativeToBase = absoluteUpstreamUrl.replace(base, "")
+
+            return `${proxyBase}/${relativeToBase}`
           }
         )
 
@@ -149,7 +158,7 @@ export default {
             "Content-Type": "application/vnd.apple.mpegurl",
             "Access-Control-Allow-Origin": "*",
             "Access-Control-Allow-Headers": "*",
-            "Cache-Control": "public, max-age=10"
+            "Cache-Control": "public, max-age=5"
           }
         })
       }
