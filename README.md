@@ -4,13 +4,6 @@ Cloudflare Worker–based IPTV proxy for streaming HLS channels with automatic p
 
 [Farsi Version](README_FA.md)
 
-### Video Tutorial (Farsi):
-
-<video controls width="640">
-  <source src="https://raw.githubusercontent.com/frank-vpl/TV-Workers/refs/heads/master/m3u8.mp4" type="video/mp4">
-  Your browser does not support HTML5 video.
-</video>
-
 ## 🚀 Features
 
 * Proxy IPTV HLS streams (`.m3u8`)

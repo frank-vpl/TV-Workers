@@ -4,13 +4,6 @@
 
 [English Version](README.md)
 
-### آموزش ویدئویی:
- 
- <video controls width="640">
-   <source src="https://raw.githubusercontent.com/frank-vpl/TV-Workers/refs/heads/master/m3u8.mp4" type="video/mp4">
-   مرورگر شما از ویدئوی HTML5 پشتیبانی نمی‌کند.
- </video>
-
  ## 🚀 قابلیت‌ها
 
  - پروکسی کردن استریم‌های IPTV HLS (`.m3u8`)
