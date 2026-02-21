@@ -7,7 +7,7 @@
 ### آموزش ویدئویی:
  
  <video controls width="640">
-   <source src="./m3u8.mp4" type="video/mp4">
+   <source src="https://github.com/frank-vpl/TV-Workers/raw/refs/heads/master/m3u8.mp4" type="video/mp4">
    مرورگر شما از ویدئوی HTML5 پشتیبانی نمی‌کند.
  </video>
 
