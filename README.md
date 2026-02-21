@@ -2,6 +2,15 @@
 
 Cloudflare Worker–based IPTV proxy for streaming HLS channels with automatic playlist rewriting and CORS support.
 
+[Farsi Version](README_FA.md)
+
+### Video Tutorial (Farsi):
+
+<video controls width="640">
+  <source src="./m3u8.mp4" type="video/mp4">
+  Your browser does not support HTML5 video.
+</video>
+
 ## 🚀 Features
 
 * Proxy IPTV HLS streams (`.m3u8`)

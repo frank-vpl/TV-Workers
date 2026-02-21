@@ -19,9 +19,17 @@
 // 📡 CHANNEL LIST
 // ============================================
 const CHANNELS = {
+  // https://workername.username.workers.dev/2342/index.m3u8
   "2342": "https://live.livetvstream.co.uk/LS-63503-4",
+  // https://workername.username.workers.dev/1001/stream.m3u8
   "1001": "https://familyhls.avatv.live/hls",
+  // https://workername.username.workers.dev/1234/playlist.m3u8
   "1234": "https://voa-ingest.akamaized.net/hls/live/2033876/tvmc07"
+
+  /**
+   * Adding an IPTV Channel: 
+   * https://github.com/frank-vpl/TV-Workers#-adding-an-iptv-channel
+  */
 }
 
 
