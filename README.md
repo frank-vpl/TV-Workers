@@ -1,169 +1,46 @@
-# 📺 TV Workers
+[Farsi version](https://github.com/absh1234/TV-Workers-panel-/blob/master/README_FA.md)
 
-Cloudflare Worker–based IPTV proxy for streaming HLS channels with automatic playlist rewriting and CORS support.
+# 📡 IPTV Proxy & Manager (Cloudflare Workers)
 
-[Farsi Version](README_FA.md)
+A high-performance IPTV proxy and management panel built on Cloudflare Workers. This project allows you to bypass CORS restrictions, manage your HLS streams, and customize your channel list with an easy-to-use web interface.
 
 ## 🚀 Features
+- **HLS Proxying:** Bypasses CORS and Referer restrictions for seamless playback.
+- **Visual Panel:** Add, Edit, and Remove channels directly from the browser.
+- **Drag & Drop Reordering:** Organize your channels visually; the order is saved permanently.
+- **Adaptive Stream Support:** Automatically tests various suffixes (index.m3u8, playlist.m3u8, etc.) to find the working stream.
+- **KV Storage:** All data is securely stored in your Cloudflare KV Namespace.
 
-* Proxy IPTV HLS streams (`.m3u8`)
-* Automatic playlist URL rewriting
-* Segment streaming support (`.ts`, `.m4s`, etc.)
-* Dynamic headers (User-Agent, Referer, Origin)
-* CORS enabled (`Access-Control-Allow-Origin: *`)
-* Lightweight and fast (Cloudflare Workers)
+## 🛠 Installation Guide
 
----
+### Step 1: Create KV Namespace
+1. Log in to your **Cloudflare Dashboard**.
+2. Go to **Workers & Pages** > **KV**.
+3. Click **Create Namespace** and name it `CUSTOM_CHANNELS`.
+4. Note down the **ID** of the created namespace.
 
-## 📂 Project Structure
+### Step 2: Deploy the Worker
+1. Go to **Workers & Pages** > **Create application** > **Create Worker**.
+2. Give your worker a name (e.g., `my-iptv-proxy`).
+3. Click **Deploy**.
+4. After deployment, click **Edit Code** and paste the content of `worker.js`.
 
-```
-worker.js
-README.md
-```
+### Step 3: Bind KV to Worker
+1. Inside your Worker's dashboard, go to the **Settings** tab.
+2. Select **Variables**.
+3. Under **KV Namespace Bindings**, click **Add binding**.
+4. Set **Variable name** to `CUSTOM_CHANNELS`.
+5. Select the namespace you created in Step 1.
+6. Click **Save and Deploy**.
 
----
-
-## 🛠 How It Works
-
-The Worker:
-
-1. Reads the channel ID from the URL path
-2. Matches it against the `CHANNELS` object
-3. Proxies the request to the real IPTV source
-4. Rewrites `.m3u8` playlists to pass back through your Worker
-5. Streams video segments directly
-
----
-
-## ➕ Adding an IPTV Channel
-
-Open `worker.js` and locate:
-
-```js
-// IPTV Channels
-const CHANNELS = {
-  "2342": "https://live.livetvstream.co.uk/LS-63503-4",
-  // "1001": "https://example.com/live/stream1"
-}
-```
-
-To add a new IPTV stream:
-
-1. Find the base stream URL
-   Example:
-
-```
-https://live.livetvstream.co.uk/LS-63503-4/index.m3u8
-```
-
-2. Remove `/index.m3u8`
-   Keep only the base path:
-
-```
-https://live.livetvstream.co.uk/LS-63503-4
-```
-
-3. Add it to `CHANNELS`:
-
-```js
-const CHANNELS = {
-  "2342": "https://live.livetvstream.co.uk/LS-63503-4",
-  "1001": "https://example.com/live/channel"
-}
-```
+## 🖥 How to Use
+1. Open your Worker URL (e.g., `https://my-iptv-proxy.workers.dev`).
+2. Use the **+** button to add a new channel (Name, HLS URL, and Logo).
+3. **Drag and Drop** the channel cards to change their display order.
+4. Click on any channel card to start the web player.
+5. Use the **Edit (Pencil)** icon to modify or delete existing channels.
 
 ---
 
-## 🔗 Accessing a Channel
-
-After deploying your Worker, access streams like this:
-
-```
-https://workername.username.workers.dev/{id}/index.m3u8
-```
-
-### Example
-
-If your Worker URL is:
-
-```
-https://tv-proxy.frank.workers.dev
-```
-
-And your channel ID is:
-
-```
-2342
-```
-
-Stream URL:
-
-```
-https://tv-proxy.frank.workers.dev/2342/index.m3u8
-```
-
----
-
-## ☁️ Deploy to Cloudflare Workers
-
-### 1️⃣ Install Wrangler
-
-```bash
-npm install -g wrangler
-```
-
-### 2️⃣ Login
-
-```bash
-wrangler login
-```
-
-### 3️⃣ Deploy
-
-```bash
-wrangler deploy
-```
-
-After deployment, Cloudflare will provide:
-
-```
-https://your-worker-name.your-username.workers.dev
-```
-
----
-
-## 📡 Example Channel Configuration
-
-Source:
-
-```
-https://live.livetvstream.co.uk/LS-63503-4/index.m3u8
-```
-
-Worker config:
-
-```js
-"2342": "https://live.livetvstream.co.uk/LS-63503-4",
-```
-
-Worker stream URL:
-
-```
-https://workername.username.workers.dev/2342/index.m3u8
-```
-
----
-
-## ⚠️ Notes
-
-* Only use streams you have permission to proxy.
-* Some IPTV providers may block proxy usage.
-* Adjust cache settings if needed.
-* Ensure the base URL does NOT include `index.m3u8`.
-
----
-
-## 📜 License
-
-[MIT License](./LICENSE)
+## 📄 License
+MIT License - Feel free to use and contribute!
